@@ -1,16 +1,19 @@
 defmodule FishingJoy.Player do
   use GenServer
-
+  alias FishingJoy.Tools
   require Logger
 
-  alias FishingJoy.Tools
 
   def info(id) do
     call(id, :info)
   end
 
-  def notify_identity(id, identity) do
-    cast(id, {:notify_identity, identity})
+  def info(id, params) do
+    call(id, {:info, params})
+  end
+
+  def fire(id, params) do
+    call(id, {:fire, params})
   end
 
   def kickoff(id) do
@@ -27,12 +30,20 @@ defmodule FishingJoy.Player do
 
   @impl true
   def init(id) do
-    {:ok, %{id: id, money: 20000, identity: ""}}
+    {:ok, %{id: id}}
   end
 
   @impl true
   def handle_call(:info, _from, state) do
     {:reply, state, state}
+  end
+  def handle_call({:info, params}, _from, state) do
+    {:reply, :ok, params}
+  end
+
+  def handle_call({:fire, params}, _from, state) do
+    Logger.error("fire:#{inspect(params)}")
+    {:reply, :ok, state}
   end
   
   @impl true
@@ -45,20 +56,9 @@ defmodule FishingJoy.Player do
   end
 
   @impl true
-  def handle_info(:notify_blind_bet, state) do
-    # 通知小盲下注
-    # todo
-    # send msg to client 
-    # client send blind_bet 
-    
-    blind_bet = Tools.random_blind_bet(state.money)
+  def handle_info(msg, state) do
+    Logger.error("Player msg: #{msg}")
     {:noreply, state}
-  end
-
-  # 通知用户此局的身份
-  def handle_info({:notify_identity, identity}, state) do
-    Logger.warn("user:#{state.id},identity:#{inspect(identity)}")
-    {:noreply, %{state | identity: identity}}
   end
 
   def terminate(reason, state) do
@@ -67,7 +67,7 @@ defmodule FishingJoy.Player do
   end
 
   defp cast(id, params) do
-    case Registry.lookup(Registry.Room, id) do
+    case Registry.lookup(Registry.Player, id) do
       [{pid, _}] ->
         GenServer.cast(pid, params)
 
@@ -80,7 +80,7 @@ defmodule FishingJoy.Player do
   end
 
   defp call(id, params) do
-    case Registry.lookup(Registry.Room, id) do
+    case Registry.lookup(Registry.Player, id) do
       [{pid, _}] ->
         GenServer.call(pid, params)
 
